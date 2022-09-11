@@ -16,8 +16,14 @@ class Game
     generate_apple_if_needed
   end
 
+  def just_ate_apple?
+    @just_ate_apple
+  end
+
   # direction: :up | :down | :left | :right | nil
   def step!(new_direction)
+    @just_ate_apple = false
+
     return if @over
 
     @tick += 1
@@ -33,6 +39,7 @@ class Game
       @over = true
       return
     when :apple
+      @just_ate_apple = true
       @snake.unshift(new_head_position)
       @apples.delete(new_head_position)
       @score += 1

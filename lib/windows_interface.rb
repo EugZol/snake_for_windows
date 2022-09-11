@@ -9,7 +9,7 @@ class WindowsInterface < Gosu::Window
   WINDOW_WIDTH = 1024
   WINDOW_HEIGHT = 768
 
-  TICK_LENGTH = 300 # длина тика, миллисекунд
+  TICK_LENGTH = 1 # длина тика, миллисекунд
 
   # alpha, r, g, b
   APPLE_COLOR = 0xFFA82D43
@@ -29,7 +29,7 @@ class WindowsInterface < Gosu::Window
 
     # Шейдеры для отладки
     #
-    @identity_shader = Shader.new(self, "#{__dir__}/shaders/identity.glsl")
+    # @identity_shader = Shader.new(self, "#{__dir__}/shaders/identity.glsl")
     #
     # @blur_shader = Shader.new(self, "#{__dir__}/shaders/blur.glsl")
     # @blur_shader['BlurFactor'] = 0.15
@@ -57,25 +57,46 @@ class WindowsInterface < Gosu::Window
     @crt_shader['LightsOn'] = @lights_on
     @crt_shader['PhosphorColor'] = Utils.color_to_vec4(NONE_COLOR)
 
-    @shaders = [
-      # @identity_shader,
-      @stretch_shader,
-      @light_shader,
-      # @crt_shader
-    ]
-
     @big_font = Gosu::Font.new((@height.to_f / 5).round, name: "#{__dir__}/../assets/lucon.ttf")
     @small_font = Gosu::Font.new((@height.to_f / 10).round, name: "#{__dir__}/../assets/lucon.ttf")
+
+    @tick_sound = Gosu::Sample.new("#{__dir__}/../assets/tick.ogg")
+    @apple_sound = Gosu::Sample.new("#{__dir__}/../assets/apple.ogg")
+    @game_over_sound = Gosu::Sample.new("#{__dir__}/../assets/game_over.ogg")
+
+    @start_up_song = Gosu::Song.new("#{__dir__}/../assets/start_up.ogg")
+    @start_up_song.volume = 0.1
+    @main_song = Gosu::Song.new("#{__dir__}/../assets/main.ogg")
+    @main_song.volume = 0.1
+    @shut_down_song = Gosu::Song.new("#{__dir__}/../assets/shut_down.ogg")
+    @shut_down_song.volume = 0.1
+
+    @scheduled_update = Gosu.milliseconds + TICK_LENGTH
   end
 
   def update
-    return if @game.over?
+    return super unless Gosu.milliseconds > @scheduled_update
+    @scheduled_update = Gosu.milliseconds + 300
 
-    @game.step!(@direction)
-    @direction = nil
+    if @will_shut_down
+      close if Gosu.milliseconds > @will_shut_down
+    end
+
+    unless @game.over? || @will_shut_down
+      @tick_sound.play(0.02)
+
+      @game.step!(@direction)
+      @direction = nil
+
+      if @game.just_ate_apple?
+        @apple_sound.play(0.02)
+      end
+    end
   end
 
   def draw
+    update_song
+
     @game.width.times do |x|
       @game.height.times do |y|
         draw_tile(x, @game.height - y - 1, @game.cell_type([x, y]))
@@ -105,9 +126,10 @@ class WindowsInterface < Gosu::Window
       @lights_on = !@lights_on
       @crt_shader['LightsOn'] = @lights_on
     elsif id == Gosu::KB_ESCAPE
-      close
+      @will_shut_down = Gosu.milliseconds + 2_000
     elsif [Gosu::KB_ENTER, Gosu::KB_RETURN].include?(id)
       @game = Game.new
+      @game_over_sound_played = false
     end
   end
 
@@ -167,5 +189,25 @@ class WindowsInterface < Gosu::Window
   def update_lighting
     @light_shader['count'] = @game.apples.length
     @game.apples.each.with_index(1) { |apple, i| @light_shader["light#{i}_tile_position"] = apple }
+  end
+
+  def update_song
+    if @game.over? && !@game_over_sound_played
+      @game_over_sound.play(0.01)
+      @game_over_sound_played = true
+    end
+
+    if !@start_up_song_played
+      @start_up_song.play
+      @start_up_song_played = true
+    end
+
+    if !@start_up_song.playing? && !@main_song.playing? && !@shut_down_song.playing?
+      @main_song.play(true)
+    end
+
+    if @will_shut_down && !@shut_down_song.playing?
+      @shut_down_song.play
+    end
   end
 end
