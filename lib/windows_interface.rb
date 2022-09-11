@@ -61,15 +61,18 @@ class WindowsInterface < Gosu::Window
       # @identity_shader,
       @stretch_shader,
       @light_shader,
-      @crt_shader
+      # @crt_shader
     ]
+
+    @big_font = Gosu::Font.new((@height.to_f / 5).round, name: "#{__dir__}/../assets/lucon.ttf")
+    @small_font = Gosu::Font.new((@height.to_f / 10).round, name: "#{__dir__}/../assets/lucon.ttf")
   end
 
   def update
+    return if @game.over?
+
     @game.step!(@direction)
     @direction = nil
-
-    update_lighting
   end
 
   def draw
@@ -79,7 +82,19 @@ class WindowsInterface < Gosu::Window
       end
     end
 
-    @shaders.each(&:apply)
+    update_lighting
+
+    @stretch_shader.apply
+
+    if @game.over?
+      @big_font.draw_text_rel("GAME OVER", @width * 0.5, @height * 0.3, 1.0, 0.5, 0.5)
+      @big_font.draw_text_rel("SCORE: #{@game.score}", @width * 0.5, @height * 0.5, 1.0, 0.5, 0.5)
+      @small_font.draw_text_rel("Esc – exit", @width * 0.5, @height * 0.7, 1.0, 0.5, 0.5)
+      @small_font.draw_text_rel("Enter – restart", @width * 0.5, @height * 0.8, 1.0, 0.5, 0.5)
+    end
+
+    @light_shader.apply
+    @crt_shader.apply
   end
 
   def button_down(id)
@@ -91,6 +106,8 @@ class WindowsInterface < Gosu::Window
       @crt_shader['LightsOn'] = @lights_on
     elsif id == Gosu::KB_ESCAPE
       close
+    elsif [Gosu::KB_ENTER, Gosu::KB_RETURN].include?(id)
+      @game = Game.new
     end
   end
 

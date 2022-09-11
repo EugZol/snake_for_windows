@@ -2,7 +2,7 @@
 
 # version 330 core
 
-# define FALLOFF vec3(0.2, 20.0, 100.0)
+# define FALLOFF vec3(0.1, 10.0, 100.0)
 # define HEIGHT -0.05
 
 uniform sampler2D Texture;
@@ -40,18 +40,6 @@ mat3 rotateZ(float angle) {
   );
 }
 
-// https://jameshfisher.com/2017/10/18/generated-normal-map/
-vec3 normal_map_of_tile(vec2 tile_coordinates) {
-  vec2 middle_coordinates = tile_coordinates + vec2(0.5, 0.5);
-  float angle = atan(middle_coordinates.y, middle_coordinates.x);
-  vec3 normal = rotateZ(angle) * normalize(vec3(1.0, 0.0, 0.0));
-  return normal;
-}
-
-vec3 dynamic_normal_map(vec2 texture_coordinates) {
-  return normal_map_of_tile(fract(texture_coordinates * vec2(game_width, game_height)));
-}
-
 void main(void) {
   vec2 texture_coordinates = gl_FragCoord.xy / vec2(ScreenWidth, ScreenHeight);
 
@@ -61,7 +49,6 @@ void main(void) {
   }
 
   vec4 diffuse_color = texture(Texture, texture_coordinates);
-  vec3 normal_map = dynamic_normal_map(texture_coordinates);
   vec3 ambient = ambient_color.rgb * ambient_color.a;
 
   vec2 lights[10] = vec2[10](light1_tile_position, light2_tile_position, light3_tile_position, light4_tile_position, light5_tile_position,
@@ -84,10 +71,9 @@ void main(void) {
 
   vec3 light_direction = light_directions[selected_light];
   float d = length(light_direction);
-  vec3 n = normalize(normal_map * 2.0 - 1.0);
   vec3 l = normalize(light_direction);
 
-  vec3 diffuse = (light_color.rgb * light_color.a) * max(dot(n, l), 0.0);
+  vec3 diffuse = (light_color.rgb * light_color.a);
   float attenuation = 1.0 / (FALLOFF.x + (FALLOFF.y * d) + (FALLOFF.z * d * d));
 
   vec3 intensity = ambient + diffuse * attenuation;
